@@ -26,6 +26,19 @@ def parse_data(conn, addr):
 		return
 	#decoding data into utf-8
 	udata = data.decode("utf-8")
+
+	"""
+	тут надо пропарсить udata.
+
+	if method != "GET" or address 	(не находится в множестве возможных страниц. 
+									мона попробовать к нему обратиться, и если лажа вернуть фолс):
+	    send_answer(conn, "404 Not Found", data="Не найдено")
+	    return
+
+	папка - зайти в нее и вернуть список файлов(и директорий) из нутри
+	файл - отобразить содержание/вернуть сам файл для скачивания(опционально, добавить ссылки в интерфейс)
+	"""
+
 	#see what we receive
 	print("Data: %s"% udata.split("\r\n", 1)[0])
 	answer = "Hello! {0:s}".format(str(connections_count))
@@ -33,7 +46,7 @@ def parse_data(conn, addr):
 
 
 """
-тут часть парсинга 
+тут часть парсинга входящих параметров
 """
 
 #create socket
@@ -52,7 +65,7 @@ try:
 		try:
 			parse_data(conn, addr)
 		except:
-			send_answer(conn, "500 Internal Server Error", data="Ошибка")
+			send_answer(conn, "500 Internal Server Error", data="Error")
 		finally:
 			# так при любой ошибке
 			# сокет закроем корректно
