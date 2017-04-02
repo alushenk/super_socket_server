@@ -43,10 +43,9 @@ def parse_data(conn, addr):
 	файл - отобразить содержание/вернуть сам файл для скачивания(опционально, добавить ссылки в интерфейс)
 	"""
 
-	print("%s - - [%s]"% (addr[0], time.strftime("%H:%M:%S %d.%m.%Y")))
-	# see what we receive
 	# дописать в конце типа udata.split("\r\n", 1)[0] - обратиться только к нужной строке. пока, во время дебага вывожу все
-	print("Data: %s"% udata.split("\r\n", 1)[0])
+	print("%s - - [%s] \"%s\""% (addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata.split("\r\n", 1)[0]))
+	#print(udata)
 	answer = "Hello! {0:s}".format(str(connections_count))	
 	send_answer(conn, typ="text/html; charset=utf-8", data=answer)
 
@@ -61,6 +60,7 @@ if len(sys.argv) == 2:
 		print("Incorrect input")
 		raise
 else:
+	# в оригинале сделано красивее, там порт это дефолтный параметр функции.
 	port = 8000
 
 #create socket
@@ -69,6 +69,7 @@ host = socket.gethostname() # Get local machine name. можно прописа�
 #myhost = os.uname()[1] #альтернатива строке сверху
 #socket binded to all hosts
 sock.bind(('', port))
+print("Serving HTTP on %s port %d ..."% sock.getsockname())
 #listens for up to 10 connections
 sock.listen(10)
 connections_count = 0
@@ -86,6 +87,8 @@ try:
 			# сокет закроем корректно
 			conn.close()
 			connections_count += 1
+except KeyboardInterrupt:
+	print("\nKeyboard interrupt received, exiting.")
 finally:
-	print ('-' * 10)
+	print ('-' * 50)
 	sock.close()
