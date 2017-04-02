@@ -1,6 +1,10 @@
 #!/usr/bin/python3.5
+# coding=utf-8
 
 import socket
+import os
+import time
+import sys
 
 def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data=""):
 	data = data.encode("utf-8")
@@ -9,7 +13,7 @@ def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data="")
 	conn.send(b"Connection: close\r\n")
 	conn.send(b"Content-Type: " + typ.encode("utf-8") + b"\r\n")
 	conn.send(b"Content-Length: " + bytes(len(data)) + b"\r\n")
-	conn.send(b"\r\n")# после пустой строки в HTTP начинаются данные
+	conn.send(b"\r\n") # после пустой строки в HTTP начинаются данные
 	conn.send(data)
 
 
@@ -39,20 +43,32 @@ def parse_data(conn, addr):
 	файл - отобразить содержание/вернуть сам файл для скачивания(опционально, добавить ссылки в интерфейс)
 	"""
 
-	#see what we receive
+	print("%s - - [%s]"% (addr[0], time.strftime("%H:%M:%S %d.%m.%Y")))
+	# see what we receive
+	# дописать в конце типа udata.split("\r\n", 1)[0] - обратиться только к нужной строке. пока, во время дебага вывожу все
 	print("Data: %s"% udata.split("\r\n", 1)[0])
-	answer = "Hello! {0:s}".format(str(connections_count))
+	answer = "Hello! {0:s}".format(str(connections_count))	
 	send_answer(conn, typ="text/html; charset=utf-8", data=answer)
 
 
-"""
-тут часть парсинга входящих параметров
-"""
+if len(sys.argv) == 2:
+	try:
+		port = int(sys.argv[1])
+		if port not in range(1024,65536):
+			print("Port out of range!")
+			raise SystemExit
+	except:
+		print("Incorrect input")
+		raise
+else:
+	port = 8000
 
 #create socket
-sock = socket.socket()
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
+host = socket.gethostname() # Get local machine name. можно прописать просто '', тогда будет дефолтный 127.0.0.1 (Localhost)
+#myhost = os.uname()[1] #альтернатива строке сверху
 #socket binded to all hosts
-sock.bind(("", 8000))
+sock.bind(('', port))
 #listens for up to 10 connections
 sock.listen(10)
 connections_count = 0
@@ -61,7 +77,6 @@ try:
 		#accepting connections. accept() waits for incoming connection and returns
 		#binded socket(conn) and IP address of client(addr)
 		conn,addr = sock.accept()
-		print("New connection from %s"%addr[0])
 		try:
 			parse_data(conn, addr)
 		except:
@@ -72,4 +87,5 @@ try:
 			conn.close()
 			connections_count += 1
 finally:
+	print ('-' * 10)
 	sock.close()
