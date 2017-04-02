@@ -42,11 +42,28 @@ def parse_data(conn, addr):
 	папка - зайти в нее и вернуть список файлов(и директорий) из нутри
 	файл - отобразить содержание/вернуть сам файл для скачивания(опционально, добавить ссылки в интерфейс)
 	"""
+	content = os.listdir(path='.')
+	content.append('')
+	udata = udata.split("\r\n", 1)[0]
+	method, address, protocol = udata.split(" ", 2)
+	print("%s - - [%s] \"%s\""% (addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata))
 
-	# дописать в конце типа udata.split("\r\n", 1)[0] - обратиться только к нужной строке. пока, во время дебага вывожу все
-	print("%s - - [%s] \"%s\""% (addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata.split("\r\n", 1)[0]))
-	#print(udata)
-	answer = "Hello! {0:s}".format(str(connections_count))	
+	print(address)
+	if method != "GET" or address[1:] not in content:
+		send_answer(conn, "404 Not Found", data = "404 Not Found")
+		return
+
+	answer = "<!DOCTYPE html>"
+	answer += "<html><head><title>Directory listing for</title></head><body>"
+	answer += "<h1>Directory listing for /</h1><hr>"
+	answer += "<h1>Hello! {0:s}</h1><ul>".format(str(connections_count))
+
+	for elem in content:
+		answer += "<li><a href=\"{0:s}\">{0:s}</a></li>".format(elem)
+
+	answer += "</ul><hr></body></html>"
+
+
 	send_answer(conn, typ="text/html; charset=utf-8", data=answer)
 
 
@@ -62,6 +79,7 @@ if len(sys.argv) == 2:
 else:
 	# в оригинале сделано красивее, там порт это дефолтный параметр функции.
 	port = 8000
+
 
 #create socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
@@ -83,12 +101,10 @@ try:
 		except:
 			send_answer(conn, "500 Internal Server Error", data="Error")
 		finally:
-			# так при любой ошибке
-			# сокет закроем корректно
 			conn.close()
 			connections_count += 1
 except KeyboardInterrupt:
 	print("\nKeyboard interrupt received, exiting.")
 finally:
-	print ('-' * 50)
+	#print ('-' * 50)
 	sock.close()
