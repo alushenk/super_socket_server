@@ -20,7 +20,6 @@ def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data="")
 def parse_data(conn, addr):
 	data = b""
 	while not b"\r\n" in data:
-		#receiving 1024 bytes from 
 		tmp = conn.recv(1024)
 		if not tmp:
 			break
@@ -28,83 +27,57 @@ def parse_data(conn, addr):
 			data += tmp
 	if not data:
 		return
-	#decoding data into utf-8
 	udata = data.decode("utf-8")
-
-	"""
-	тут надо пропарсить udata.
-
-	if method != "GET" or address 	(не находится в множестве возможных страниц. 
-									мона попробовать к нему обратиться, и если лажа вернуть фолс):
-	    send_answer(conn, "404 Not Found", data="Не найдено")
-	    return
-
-	папка - зайти в нее и вернуть список файлов(и директорий) из нутри
-	файл - отобразить содержание/вернуть сам файл для скачивания(опционально, добавить ссылки в интерфейс)
-	"""
-	content = os.listdir(path='.')
-	content.append('')
 	udata = udata.split("\r\n", 1)[0]
 	method, address, protocol = udata.split(" ", 2)
 	print("%s - - [%s] \"%s\""% (addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata))
 
-	print(address)
-	if method != "GET" or address[1:] not in content:
+	content = os.listdir(path='.'+address)
+
+	if method != "GET" and len(content) == 0:
 		send_answer(conn, "404 Not Found", data = "404 Not Found")
 		return
 
 	answer = "<!DOCTYPE html>"
 	answer += "<html><head><title>Directory listing for</title></head><body>"
-	answer += "<h1>Directory listing for /</h1><hr>"
-	answer += "<h1>Hello! {0:s}</h1><ul>".format(str(connections_count))
-
+	answer += "<h1>Directory listing for {0:s}</h1><hr><ul>".format(address)
 	for elem in content:
 		answer += "<li><a href=\"{0:s}\">{0:s}</a></li>".format(elem)
-
 	answer += "</ul><hr></body></html>"
-
 
 	send_answer(conn, typ="text/html; charset=utf-8", data=answer)
 
 
-if len(sys.argv) == 2:
-	try:
-		port = int(sys.argv[1])
-		if port not in range(1024,65536):
-			print("Port out of range!")
-			raise SystemExit
-	except:
-		print("Incorrect input")
-		raise
-else:
-	# в оригинале сделано красивее, там порт это дефолтный параметр функции.
-	port = 8000
+def get_port(argv, result):
+	if len(argv) == 2:
+		try:
+			result = int(argv[1])
+			if result not in range(1024,65536):
+				print("Port out of range!")
+				raise SystemExit
+		except:
+			print("Incorrect input")
+			raise
+	return result
 
 
-#create socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
-host = socket.gethostname() # Get local machine name. можно прописать просто '', тогда будет дефолтный 127.0.0.1 (Localhost)
-#myhost = os.uname()[1] #альтернатива строке сверху
-#socket binded to all hosts
-sock.bind(('', port))
+host_port = get_port(sys.argv, 8000)
+host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
+#hostname = socket.gethostname()
+host_sock.bind(('', host_port))
 print("Serving HTTP on %s port %d ..."% sock.getsockname())
 #listens for up to 10 connections
-sock.listen(10)
-connections_count = 0
+host_sock.listen(10)
 try:
 	while True:
-		#accepting connections. accept() waits for incoming connection and returns
-		#binded socket(conn) and IP address of client(addr)
-		conn,addr = sock.accept()
+		client_sock,client_addr = host_sock.accept()
 		try:
-			parse_data(conn, addr)
+			parse_data(client_sock, client_addr)
 		except:
-			send_answer(conn, "500 Internal Server Error", data="Error")
+			send_answer(client_sock, "500 Internal Server Error", data="500 Internal Server Error")
 		finally:
-			conn.close()
-			connections_count += 1
+			client_sock.close()
 except KeyboardInterrupt:
 	print("\nKeyboard interrupt received, exiting.")
 finally:
-	#print ('-' * 50)
-	sock.close()
+	host_sock.close()
