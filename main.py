@@ -7,14 +7,13 @@ import sys
 import mimetypes
 from http import HTTPStatus
 
-def error_page(err_code='404', mess=' ', err_code_expln=' '):
+def error_page(err_code='404', mess=' '):
     err_page = "<!DOCTYPE html><html><head>"
     err_page += "<meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\">"
     err_page += "<title>Error response</title></head><body>"
     err_page += "<h1>Error response</h1>"
-    err_page += "<p>Error code: {:s}</p>".format(err_code)
+    err_page += "<p>Error code: {:d}</p>".format(err_code)
     err_page += "<p>Message: {:s}.</p>".format(mess)
-    err_page += "<p>Error code explanation: {:s}.</p>".format(err_code_expln)
     err_page += "</body></html>"
     return err_page
 
@@ -30,18 +29,15 @@ def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data="")
 	conn.sendall(data)
 
 def file_manager(address):
-
 	try:
 		content = os.listdir(path='.' + address)
 	except OSError:
 		return error_page(HTTPStatus.NOT_FOUND, "No permission to list directory")
-
 	content.sort(key = lambda a: a.lower())
 	for index in "index.html", "index.htm":
 		if index in content:
 			with open('.' + address + index) as page:
 				return page.read()
-
 	result = "<!DOCTYPE html>"
 	result += "<html><head><title>Directory listing for {0:s}</title></head><body>"
 	result += "<h1>Directory listing for {0:s}</h1><hr><ul>".format(address)
@@ -53,6 +49,7 @@ def file_manager(address):
 	return result
 
 def parse_data(client_sock, client_addr):
+	state = 200
 	data = b""
 	while not b"\r\n" in data:
 		tmp = client_sock.recv(1024)
@@ -65,35 +62,28 @@ def parse_data(client_sock, client_addr):
 	udata = data.decode("utf-8")
 	udata = udata.split("\r\n", 1)[0]
 	method, address, protocol = udata.split(" ", 2)
-	print("%s - - [%s] \"%s\""% (client_addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata))
-
-	if method != "GET":
-		send_answer(client_sock, "404 Not Found", data = "404 Not Found")
-		return
-
-	#address = address.encode("utf-8")
-	#print(address)
-	if os.path.isdir('.' + address):
-		answer = file_manager(address)
-		typ = "text/html; charset=utf-8"
-	else: #os.path.isfile('.' + address):
-		typ = extensions_map[os.path.splitext(address)[1]]
-		if "text" in typ:
-			typ += "; charset=utf-8"
-			file = open('.' + address)
+	if method == "GET":
+		if os.path.isdir('.' + address):
+			answer = file_manager(address)
+			typ = "text/html; charset=utf-8"
 		else:
-			file = open('.' + address, 'rb')
-		answer = file.read()
-		file.close()
-
-		# if "image" in typ:
-		# 	with open('.' + address, 'rb') as file:
-		# 		answer = file.read()
-		# else:
-		# 	with open('.' + address) as file:
-		# 		answer = file.read()
-		
-	print(typ)
+			typ = extensions_map[os.path.splitext(address)[1]]
+			try:
+				if "text" in typ:
+					typ += "; charset=utf-8"
+					file = open('.' + address)
+				else:
+					file = open('.' + address, 'rb')
+				answer = file.read()
+				file.close()
+			except OSError:
+				typ = "text/html; charset=utf-8"
+				state = HTTPStatus.NOT_FOUND
+				answer = error_page(state, "Error opening file")
+	else:
+		state = HTTPStatus.NOT_FOUND
+		answer = error_page(state, "File not found")
+	print("%s - - [%s] \"%s\" %d -"% (client_addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata, state))
 	send_answer(client_sock, typ=typ, data=answer)
 
 
