@@ -26,7 +26,7 @@ def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data="")
 	conn.send(b"Content-Type: " + typ.encode("utf-8") + b"\r\n")
 	conn.send(b"Content-Length: " + bytes(len(data)) + b"\r\n")
 	conn.send(b"\r\n")
-	conn.sendall(data)
+	conn.send(data)
 
 def file_manager(address):
 	try:
