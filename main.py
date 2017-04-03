@@ -16,11 +16,32 @@ def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data="")
 	conn.send(b"\r\n") # после пустой строки в HTTP начинаются данные
 	conn.send(data)
 
+def file_manager(address):
 
-def parse_data(conn, addr):
+	# проверить, считали ли мы хоть шото и валидный ли данный путь. трай-екзепт как в примере
+	content = os.listdir(path='.' + address)
+	content.sort(key = lambda a: a.lower())
+
+	for index in "index.html", "index.htm":
+		if index in content:
+			with open('.' + address + index) as page:
+				return page.read()
+
+	result = "<!DOCTYPE html>"
+	result += "<html><head><title>Directory listing for</title></head><body>"
+	result += "<h1>Directory listing for {0:s}</h1><hr><ul>".format(address)
+	for elem in content:
+		result += "<li><a href=\"{0:s}\">{0:s}</a></li>".format(elem)
+	result += "</ul><hr></body></html>"
+	return result
+
+#def check_directory():
+
+
+def parse_data(client_sock, client_addr):
 	data = b""
 	while not b"\r\n" in data:
-		tmp = conn.recv(1024)
+		tmp = client_sock.recv(1024)
 		if not tmp:
 			break
 		else:
@@ -30,22 +51,22 @@ def parse_data(conn, addr):
 	udata = data.decode("utf-8")
 	udata = udata.split("\r\n", 1)[0]
 	method, address, protocol = udata.split(" ", 2)
-	print("%s - - [%s] \"%s\""% (addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata))
+	print("%s - - [%s] \"%s\""% (client_addr[0], time.strftime("%d/%b/%G %H:%M:%S"), udata))
 
-	content = os.listdir(path='.'+address)
-
-	if method != "GET" and len(content) == 0:
-		send_answer(conn, "404 Not Found", data = "404 Not Found")
+	if method != "GET":
+		send_answer(client_sock, "404 Not Found", data = "404 Not Found")
 		return
+	#answer = ''
+	if os.path.isdir('.' + address):
+		answer = file_manager(address)
+		typ = "text/html; charset=utf-8"
+	elif os.path.isfile('.' + address):
+		with open('.' + address) as file:
+			answer = file.read()
+			typ = "text/plain; charset=utf-8"
 
-	answer = "<!DOCTYPE html>"
-	answer += "<html><head><title>Directory listing for</title></head><body>"
-	answer += "<h1>Directory listing for {0:s}</h1><hr><ul>".format(address)
-	for elem in content:
-		answer += "<li><a href=\"{0:s}\">{0:s}</a></li>".format(elem)
-	answer += "</ul><hr></body></html>"
 
-	send_answer(conn, typ="text/html; charset=utf-8", data=answer)
+	send_answer(client_sock, typ=typ, data=answer)
 
 
 def get_port(argv, result):
@@ -65,8 +86,7 @@ host_port = get_port(sys.argv, 8000)
 host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
 #hostname = socket.gethostname()
 host_sock.bind(('', host_port))
-print("Serving HTTP on %s port %d ..."% sock.getsockname())
-#listens for up to 10 connections
+print("Serving HTTP on %s port %d ..."% host_sock.getsockname())
 host_sock.listen(10)
 try:
 	while True:
@@ -75,6 +95,7 @@ try:
 			parse_data(client_sock, client_addr)
 		except:
 			send_answer(client_sock, "500 Internal Server Error", data="500 Internal Server Error")
+			raise
 		finally:
 			client_sock.close()
 except KeyboardInterrupt:
