@@ -5,16 +5,17 @@ import socket
 import os
 import time
 import sys
+import mimetypes
 
 def send_answer(conn, status="200 OK", typ="text/plain; charset=utf-8", data=""):
-	data = data.encode("utf-8")
+	#data = data.encode("utf-8")
 	conn.send(b"HTTP/1.1 " + status.encode("utf-8") + b"\r\n")
 	conn.send(b"Server: simplehttp\r\n")
 	conn.send(b"Connection: close\r\n")
 	conn.send(b"Content-Type: " + typ.encode("utf-8") + b"\r\n")
 	conn.send(b"Content-Length: " + bytes(len(data)) + b"\r\n")
-	conn.send(b"\r\n") # после пустой строки в HTTP начинаются данные
-	conn.send(data)
+	conn.send(b"\r\n")
+	conn.sendall(data)
 
 def file_manager(address):
 
@@ -31,12 +32,11 @@ def file_manager(address):
 	result += "<html><head><title>Directory listing for</title></head><body>"
 	result += "<h1>Directory listing for {0:s}</h1><hr><ul>".format(address)
 	for elem in content:
+		if os.path.isdir('.' + address + elem):
+			elem += '/'
 		result += "<li><a href=\"{0:s}\">{0:s}</a></li>".format(elem)
 	result += "</ul><hr></body></html>"
 	return result
-
-#def check_directory():
-
 
 def parse_data(client_sock, client_addr):
 	data = b""
@@ -56,16 +56,17 @@ def parse_data(client_sock, client_addr):
 	if method != "GET":
 		send_answer(client_sock, "404 Not Found", data = "404 Not Found")
 		return
-	#answer = ''
+
 	if os.path.isdir('.' + address):
 		answer = file_manager(address)
-		typ = "text/html; charset=utf-8"
+		typ = "text/html"
 	elif os.path.isfile('.' + address):
-		with open('.' + address) as file:
+		print('eta fail')
+		with open('.' + address, 'rb') as file:
 			answer = file.read()
-			typ = "text/plain; charset=utf-8"
-
-
+		typ = extensions_map[os.path.splitext(address)[1]]
+	typ += "; charset=utf-8"
+	print(typ)
 	send_answer(client_sock, typ=typ, data=answer)
 
 
@@ -81,7 +82,11 @@ def get_port(argv, result):
 			raise
 	return result
 
-
+mimetypes.init()
+extensions_map = mimetypes.types_map.copy()
+extensions_map[""] = "application/octet-stream"
+if '' in extensions_map:
+	print(extensions_map[''])
 host_port = get_port(sys.argv, 8000)
 host_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
 #hostname = socket.gethostname()
