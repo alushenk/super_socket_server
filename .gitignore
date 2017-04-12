@@ -1,0 +1,6 @@
+# ignore all in current directory
+/*
+
+# while list
+!.gitignore
+!main.py
